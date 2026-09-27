@@ -186,4 +186,4 @@ Every commit is a real step. Every failure is documented. No fake metrics.
 
 ## Connect
 
-- LinkedIn: [[your profile]](https://www.linkedin.com/in/chetan-there-32095931b/)]
+- LinkedIn: [[chetan_there]](https://www.linkedin.com/in/chetan-there-32095931b/)]
