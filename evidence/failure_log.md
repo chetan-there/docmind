@@ -1,38 +1,50 @@
-# Failure Log — Day 1
+# Failure Log — Day 2
 
-**Date:** 27-09-26
+**Date:** 28-09-26
 **Project:** DocMind
-**Stage:** Day 1 — basic vector-search RAG pipeline
+**Stage:** Day 2 — added definition chunk, re-tested pipeline
 
 ---
 
 ## Setup
 
-- 6 test documents stored in Qdrant
+- 7 test documents stored in Qdrant (added 1 new chunk)
 - Embedding model: `all-MiniLM-L6-v2` (384 dimensions, local)
 - Retrieval: top-3 by cosine similarity
 - Generation: Gemini 1.5 Flash
 - No chunking — each document is a single chunk
 - No BM25, no hybrid ranking, no re-ranking
 
+**Change from Day 1:**
+
+Added one new document that explicitly defines "vector database":
+
+> "A vector database is a database that stores and indexes high-dimensional vectors for similarity search. It is used in RAG systems to retrieve relevant text by embedding similarity."
+
+---
+
+## Hypothesis Before Running
+
+If the Day 1 failure was a **coverage problem** (the answer was not in the index), then adding a chunk that defines "vector database" should fix the query.
+
+If the failure was a **ranking problem** (the answer existed but ranked low), adding a chunk would not fix it.
+
 ---
 
 ## What Worked
 
-- Pipeline runs end-to-end without errors
-- 4 out of 5 queries returned correct answers
-- Top-1 retrieved chunk was correct for queries 1, 2, 3, and 4
-- Gemini used the retrieved context and did not hallucinate
+- All 5 queries now return correct answers
+- The new chunk ranked #1 for "What is a vector database?" with a score of 0.7775
+- Gemini's answer is now directly sourced from the retrieved context
+- Score separation improved significantly
 
 ---
 
-## What Failed
+## What Changed
 
-### Failure 1: Retrieval returns "similar" chunks, not "answering" chunks
+### Query: "What is a vector database?"
 
-**Query:** "What is a vector database?"
-
-**Retrieved chunks:**
+**Before (Day 1):**
 
 | Rank | Score  | Chunk                                                                                            |
 | ---- | ------ | ------------------------------------------------------------------------------------------------ |
@@ -44,82 +56,96 @@
 
 > "The provided context states that 'Qdrant is a vector database written in Rust'... However, the context does not define what a vector database is."
 
-**Observation:**
+**After (Day 2):**
 
-The top chunk MENTIONS vector databases but does not DEFINE them. The system had no chunk that actually answered the question. Retrieval found semantically related text, not answer-bearing text.
+| Rank | Score  | Chunk                                                                                                       |
+| ---- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| 1    | 0.7775 | "A vector database is a database that stores and indexes high-dimensional vectors for similarity search..." |
+| 2    | 0.4880 | "Qdrant is a vector database written in Rust. It supports filtering and payload storage."                   |
+| 3    | 0.3694 | "Embeddings are dense vector representations of text. Similar meanings produce similar vectors."            |
 
-**Root cause (hypothesis):**
+**Gemini response:**
 
-The document set did not contain a chunk that defines "vector database." The retrieval system can only return what exists in the index. This is a **coverage problem**, not an embedding problem.
-
-**But there is a second issue:**
-
-The score gap between rank 1 (0.4880) and rank 3 (0.2300) is small. The system has weak confidence separation. Even if a defining chunk existed, there is no guarantee it would rank first.
-
----
-
-### Failure 2: Low confidence scores across the board
-
-**Observed scores across all 5 queries:**
-
-| Query                        | Top-1 score |
-| ---------------------------- | ----------- |
-| "What is Qdrant?"            | 0.5642      |
-| "How does BM25 work?"        | 0.6843      |
-| "What is RAG?"               | 0.7174      |
-| "Tell me about FastAPI"      | 0.5906      |
-| "What is a vector database?" | 0.4880      |
-
-**Observation:**
-
-Even the best matches only reach 0.49–0.72. For `all-MiniLM-L6-v2`, this is expected — it is a small, fast embedding model. But it means "related" is not "confident."
-
-**Implication:**
-
-We cannot rely on cosine score thresholds for filtering. We need better ranking signals (BM25, re-ranking) and better evaluation, not just embedding model swaps.
+> "A vector database is a database that stores and indexes high-dimensional vectors for similarity search."
 
 ---
 
-### Failure 3: Irrelevant chunks appear in top-3
+## Analysis
 
-**Query:** "What is a vector database?"
+### 1. Coverage problem confirmed
 
-Chunk 3 returned "LangGraph is a library for building stateful multi-actor applications with LLMs." This is completely unrelated to the query.
+The Day 1 failure was not a retrieval algorithm problem. The answer simply did not exist in the index. Once a chunk containing the answer was added, retrieval found it at rank 1 with high confidence (0.7775).
 
-**Observation:**
+This confirms the hypothesis: **RAG cannot retrieve what is not in the index.** No model upgrade, no chunking strategy, and no ranking algorithm fixes missing information.
 
-Top-3 retrieval is returning noise. The system has no mechanism to reject weak matches. Without a score floor or better ranking, top-K will always return K chunks — even when only 1 is relevant.
+### 2. Score gap improved
+
+|              | Day 1  | Day 2  |
+| ------------ | ------ | ------ |
+| Rank 1 score | 0.4880 | 0.7775 |
+| Rank 2 score | 0.3694 | 0.4880 |
+| Gap          | 0.12   | 0.29   |
+
+When the correct chunk exists, retrieval has strong confidence and clear separation. When it does not, scores are low and close together.
+
+The score gap is a signal. A small gap means "no confident match found." A large gap means "the right answer exists and was found."
+
+### 3. Side effect: adding one chunk shifted rankings for other queries
+
+**Query: "What is RAG?"**
+
+Before (Day 1):
+
+| Rank | Score  | Chunk                                              |
+| ---- | ------ | -------------------------------------------------- |
+| 1    | 0.7174 | "RAG stands for Retrieval-Augmented Generation..." |
+| 2    | 0.1737 | "Qdrant is a vector database written in Rust..."   |
+| 3    | 0.1200 | "FastAPI is a modern Python web framework..."      |
+
+After (Day 2):
+
+| Rank | Score  | Chunk                                              |
+| ---- | ------ | -------------------------------------------------- |
+| 1    | 0.7174 | "RAG stands for Retrieval-Augmented Generation..." |
+| 2    | 0.2154 | "A vector database is a database that stores..."   |
+| 3    | 0.1737 | "Qdrant is a vector database written in Rust..."   |
+
+The new chunk appeared at rank 2 for a query it was not written for. Reason: the new chunk mentions "RAG systems" in its text. The embedding model picked up that shared vocabulary.
+
+**Observation:** Retrieval is not isolated per query. Adding one chunk affects ranking across the entire collection because embeddings capture shared vocabulary between chunks.
 
 ---
 
 ## What This Tells Me
 
-1. **Retrieval quality is the bottleneck, not generation.** Gemini correctly said "I don't know" when the context was insufficient. The LLM is not the problem.
+1. **Retrieval quality is a coverage problem first, ranking problem second.** Fix the index before tuning the algorithm.
 
-2. **Semantic similarity is not the same as answering.** A chunk can be about the same topic and still not answer the question.
+2. **Score gap is a diagnostic signal.** Use it to detect when retrieval is uncertain.
 
-3. **Scores are weak.** Local embeddings produce low-confidence matches on small document sets. This needs measurable evaluation, not vibes.
+3. **Embedding models are sensitive to shared vocabulary.** One chunk mentioning another chunk's topic can shift rankings for unrelated queries.
 
-4. **Coverage matters.** If the answer is not in the index, no retrieval system can find it. This is a design problem, not a model problem.
+4. **Adding documents changes retrieval behavior globally.** This will matter more as the document set grows.
 
-5. **No evaluation = no improvement.** I currently have no way to measure whether retrieval is getting better. I need precision@k and recall before I change anything.
+5. **The LLM was never the problem.** Gemini said "I don't know" when context was missing and answered correctly when context was present. The LLM is doing its job correctly.
 
 ---
 
 ## Next Experiments (Not Today)
 
-- Add a document that defines "vector database" — does retrieval find it?
-- Test chunking: split documents into smaller pieces. Does retrieval improve?
+- Test chunking: split documents into smaller pieces. Does retrieval improve or degrade?
 - Add BM25 — does exact keyword matching help?
 - Implement Reciprocal Rank Fusion — does combining BM25 + vector beat either alone?
 - Build an evaluation script — measure precision@k on 20 queries
+- Test what happens when the document set grows to 50+ chunks
 
 ---
 
 ## Honest Summary
 
-Day 1 pipeline works, but the retrieval layer is shallow.
+Day 2 confirmed that the Day 1 failure was a coverage problem, not a retrieval algorithm problem.
 
-The system retrieves text that is _about_ the topic, not text that _answers_ the question.
+The system now answers all 5 test queries correctly.
 
-This is the first real engineering problem of the project.
+But the document set is still only 7 chunks. The interesting problems will start when the document set grows and retrieval has to actually choose between many relevant-looking chunks.
+
+Next phase: BM25, hybrid ranking, and evaluation.

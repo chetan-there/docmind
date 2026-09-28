@@ -1,0 +1,4 @@
+qdrant-client
+google-genai
+python-dotenv
+sentence_transformers

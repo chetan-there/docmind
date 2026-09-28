@@ -1,0 +1,67 @@
+(docmind) C:\swe\docmind>uv run rag.py
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████| 103/103 [00:00<00:00, 2337.20it/s]
+Inserted 7 documents into Qdrant collection 'test_docs'
+
+============================================================
+QUERY: What is Qdrant?
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.5642] Qdrant is a vector database written in Rust. It supports filtering and payload s...
+  [score=0.2039] BM25 is a ranking function used in information retrieval. It scores documents ba...
+  [score=0.1719] RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM ge...
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+
+ANSWER:
+Qdrant is a vector database written in Rust. It supports filtering and payload storage.
+
+============================================================
+QUERY: How does BM25 work?
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.6843] BM25 is a ranking function used in information retrieval. It scores documents ba...
+  [score=0.2461] RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM ge...
+  [score=0.2197] Qdrant is a vector database written in Rust. It supports filtering and payload s...
+
+ANSWER:
+BM25 is a ranking function that scores documents based on term frequency.
+
+============================================================
+QUERY: What is RAG?
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.7174] RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM ge...
+  [score=0.2154] A vector database is a database that stores and indexes high-dimensional vectors...
+  [score=0.1737] Qdrant is a vector database written in Rust. It supports filtering and payload s...
+
+ANSWER:
+RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM generation.
+
+============================================================
+QUERY: Tell me about FastAPI
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.5906] FastAPI is a modern Python web framework for building APIs. It uses Pydantic for...
+  [score=0.2032] Qdrant is a vector database written in Rust. It supports filtering and payload s...
+  [score=0.1613] RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM ge...
+
+ANSWER:
+FastAPI is a modern Python web framework for building APIs. It uses Pydantic for validation.
+
+============================================================
+QUERY: What is a vector database?
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.7775] A vector database is a database that stores and indexes high-dimensional vectors...
+  [score=0.4880] Qdrant is a vector database written in Rust. It supports filtering and payload s...
+  [score=0.3694] Embeddings are dense vector representations of text. Similar meanings produce si...
+
+ANSWER:
+A vector database is a database that stores and indexes high-dimensional vectors for similarity search.
+
+(docmind) C:\swe\docmind>
