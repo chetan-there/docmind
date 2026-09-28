@@ -29,6 +29,7 @@ documents = [
     "LangGraph is a library for building stateful multi-actor applications with LLMs.",
     "RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM generation.",
     "Embeddings are dense vector representations of text. Similar meanings produce similar vectors.",
+    "A vector database is a database that stores and indexes high-dimensional vectors for similarity search. It is used in RAG systems to retrieve relevant text by embedding similarity.",
 ]
 
 
