@@ -1,151 +1,109 @@
-# Failure Log — Day 2
+# Failure Log — Day 4
 
-**Date:** 28-09-26
+**Date:** 30-09-26
 **Project:** DocMind
-**Stage:** Day 2 — added definition chunk, re-tested pipeline
+**Stage:** Day 4 — long document baseline (no chunking)
 
 ---
 
 ## Setup
 
-- 7 test documents stored in Qdrant (added 1 new chunk)
-- Embedding model: `all-MiniLM-L6-v2` (384 dimensions, local)
-- Retrieval: top-3 by cosine similarity
-- Generation: Gemini 1.5 Flash
-- No chunking — each document is a single chunk
-- No BM25, no hybrid ranking, no re-ranking
-
-**Change from Day 1:**
-
-Added one new document that explicitly defines "vector database":
-
-> "A vector database is a database that stores and indexes high-dimensional vectors for similarity search. It is used in RAG systems to retrieve relevant text by embedding similarity."
+- 8 documents in Qdrant (added 1 long document)
+- Long document: ~400 words covering RAG, chunking, overlap, vector DBs, BM25, hybrid retrieval
+- Long doc stored as a single chunk
+- Same pipeline: all-MiniLM-L6-v2 + Qdrant + Gemini 1.5 Flash
 
 ---
 
-## Hypothesis Before Running
+## Test Queries Added
 
-If the Day 1 failure was a **coverage problem** (the answer was not in the index), then adding a chunk that defines "vector database" should fix the query.
-
-If the failure was a **ranking problem** (the answer existed but ranked low), adding a chunk would not fix it.
-
----
-
-## What Worked
-
-- All 5 queries now return correct answers
-- The new chunk ranked #1 for "What is a vector database?" with a score of 0.7775
-- Gemini's answer is now directly sourced from the retrieved context
-- Score separation improved significantly
+- "What is chunking?"
+- "Chunk overlap"
+- "Hybrid retrieval"
 
 ---
 
-## What Changed
+## Observation 1: The long chunk ranks #1 for every sub-topic query
 
-### Query: "What is a vector database?"
+For all three queries, the same chunk — the entire long document — ranked #1.
 
-**Before (Day 1):**
+Scores:
 
-| Rank | Score  | Chunk                                                                                            |
-| ---- | ------ | ------------------------------------------------------------------------------------------------ |
-| 1    | 0.4880 | "Qdrant is a vector database written in Rust. It supports filtering and payload storage."        |
-| 2    | 0.3694 | "Embeddings are dense vector representations of text. Similar meanings produce similar vectors." |
-| 3    | 0.2300 | "LangGraph is a library for building stateful multi-actor applications with LLMs."               |
+- "What is chunking?" → 0.4533
+- "Chunk overlap" → 0.4208
+- "Hybrid retrieval" → 0.5103
 
-**Gemini response:**
-
-> "The provided context states that 'Qdrant is a vector database written in Rust'... However, the context does not define what a vector database is."
-
-**After (Day 2):**
-
-| Rank | Score  | Chunk                                                                                                       |
-| ---- | ------ | ----------------------------------------------------------------------------------------------------------- |
-| 1    | 0.7775 | "A vector database is a database that stores and indexes high-dimensional vectors for similarity search..." |
-| 2    | 0.4880 | "Qdrant is a vector database written in Rust. It supports filtering and payload storage."                   |
-| 3    | 0.3694 | "Embeddings are dense vector representations of text. Similar meanings produce similar vectors."            |
-
-**Gemini response:**
-
-> "A vector database is a database that stores and indexes high-dimensional vectors for similarity search."
+The system has no way to distinguish which part of the long document matters. It returns the whole thing and hopes the LLM finds the answer.
 
 ---
 
-## Analysis
+## Observation 2: The LLM is doing the heavy lifting
 
-### 1. Coverage problem confirmed
+Gemini answered all three queries correctly because it read the entire long chunk and extracted the relevant paragraph.
 
-The Day 1 failure was not a retrieval algorithm problem. The answer simply did not exist in the index. Once a chunk containing the answer was added, retrieval found it at rank 1 with high confidence (0.7775).
+This works today because the chunk is short enough (~400 words) for the LLM to process.
 
-This confirms the hypothesis: **RAG cannot retrieve what is not in the index.** No model upgrade, no chunking strategy, and no ranking algorithm fixes missing information.
+It will fail on real documents.
 
-### 2. Score gap improved
+A 50-page PDF embedded as one vector would:
 
-|              | Day 1  | Day 2  |
-| ------------ | ------ | ------ |
-| Rank 1 score | 0.4880 | 0.7775 |
-| Rank 2 score | 0.3694 | 0.4880 |
-| Gap          | 0.12   | 0.29   |
+- Blur the embedding (average of many topics)
+- Score low on all specific queries
+- Force the LLM to process huge context with mostly irrelevant content
 
-When the correct chunk exists, retrieval has strong confidence and clear separation. When it does not, scores are low and close together.
+---
 
-The score gap is a signal. A small gap means "no confident match found." A large gap means "the right answer exists and was found."
+## Observation 3: Score gap collapses on specific queries
 
-### 3. Side effect: adding one chunk shifted rankings for other queries
+Query: "Hybrid retrieval"
 
-**Query: "What is RAG?"**
+Rank 1: 0.5103 (long doc)
+Rank 2: 0.4873 (vector database chunk)
+Gap: 0.023
 
-Before (Day 1):
+0.023 is essentially noise. The retrieval system has zero confidence about which chunk is correct.
 
-| Rank | Score  | Chunk                                              |
-| ---- | ------ | -------------------------------------------------- |
-| 1    | 0.7174 | "RAG stands for Retrieval-Augmented Generation..." |
-| 2    | 0.1737 | "Qdrant is a vector database written in Rust..."   |
-| 3    | 0.1200 | "FastAPI is a modern Python web framework..."      |
+Compare to Day 2's clean separation:
+Rank 1: 0.7775
+Rank 2: 0.4880
+Gap: 0.29
 
-After (Day 2):
-
-| Rank | Score  | Chunk                                              |
-| ---- | ------ | -------------------------------------------------- |
-| 1    | 0.7174 | "RAG stands for Retrieval-Augmented Generation..." |
-| 2    | 0.2154 | "A vector database is a database that stores..."   |
-| 3    | 0.1737 | "Qdrant is a vector database written in Rust..."   |
-
-The new chunk appeared at rank 2 for a query it was not written for. Reason: the new chunk mentions "RAG systems" in its text. The embedding model picked up that shared vocabulary.
-
-**Observation:** Retrieval is not isolated per query. Adding one chunk affects ranking across the entire collection because embeddings capture shared vocabulary between chunks.
+When a chunk contains a single focused topic, retrieval is confident. When a chunk contains many topics, retrieval is uncertain.
 
 ---
 
 ## What This Tells Me
 
-1. **Retrieval quality is a coverage problem first, ranking problem second.** Fix the index before tuning the algorithm.
+1. **Chunking is not optional.** It is the difference between working and not working at scale.
 
-2. **Score gap is a diagnostic signal.** Use it to detect when retrieval is uncertain.
+2. **The LLM is masking a retrieval problem.** Gemini reads the entire chunk and finds the answer. It looks like retrieval worked. It did not.
 
-3. **Embedding models are sensitive to shared vocabulary.** One chunk mentioning another chunk's topic can shift rankings for unrelated queries.
+3. **Score gap is a diagnostic tool.** A small gap = retrieval is uncertain. A large gap = retrieval is confident.
 
-4. **Adding documents changes retrieval behavior globally.** This will matter more as the document set grows.
-
-5. **The LLM was never the problem.** Gemini said "I don't know" when context was missing and answered correctly when context was present. The LLM is doing its job correctly.
+4. **This pipeline will fail on real documents.** A 50-page PDF as one chunk would return garbage.
 
 ---
 
-## Next Experiments (Not Today)
+## Next Experiment (Day 5)
 
-- Test chunking: split documents into smaller pieces. Does retrieval improve or degrade?
-- Add BM25 — does exact keyword matching help?
-- Implement Reciprocal Rank Fusion — does combining BM25 + vector beat either alone?
-- Build an evaluation script — measure precision@k on 20 queries
-- Test what happens when the document set grows to 50+ chunks
+Actually chunk the long document into 200-word pieces with 40-word overlap.
+
+Re-run the same three queries.
+
+Compare:
+
+- Which chunk ranks #1 for each query
+- Score of the top chunk before vs after
+- Whether the answer becomes more specific
+
+Hypothesis: chunking will increase the top-1 score because each chunk is more focused. The correct chunk will outrank the others with a clear gap.
 
 ---
 
 ## Honest Summary
 
-Day 2 confirmed that the Day 1 failure was a coverage problem, not a retrieval algorithm problem.
+Today's run established the baseline. The system works, but only because the long document is short enough that the LLM can process it entirely.
 
-The system now answers all 5 test queries correctly.
+This is not retrieval. This is the LLM doing the work.
 
-But the document set is still only 7 chunks. The interesting problems will start when the document set grows and retrieval has to actually choose between many relevant-looking chunks.
-
-Next phase: BM25, hybrid ranking, and evaluation.
+The next experiment will show whether real chunking fixes this.

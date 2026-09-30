@@ -1,0 +1,44 @@
+(docmind) C:\swe\docmind>uv run rag.py
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|██████████████████████████████████████████████████████████████████████████████████████████████| 103/103 [00:00<00:00, 1908.66it/s]
+Inserted 8 documents into Qdrant collection 'test_docs'
+
+============================================================
+QUERY: What is chunking?
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.4533] 
+    Retrieval-Augmented Generation (RAG) is a technique that combines informati...
+  [score=0.2197] RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM ge...
+  [score=0.2129] Qdrant is a vector database written in Rust. It supports filtering and payload s...
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+
+ANSWER:
+Chunking is a critical part of the ingestion stage in a RAG pipeline, where documents are split into smaller pieces (chunks). These chunks are then embedded into vectors and stored in a vector database. The size of the chunks is important; if they are too large, they can contain multiple topics, blurring the embedding, and if too small, they can lose context. A common approach is to use chunk sizes of 256 to 512 tokens with 10 to 20 percent overlap between them.
+
+============================================================
+QUERY: Chunk overlap
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.4208] 
+    Retrieval-Augmented Generation (RAG) is a technique that combines informati...
+  [score=0.1963] RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM ge...
+  [score=0.1516] Embeddings are dense vector representations of text. Similar meanings produce si...
+
+ANSWER:
+Chunk overlap is a common approach in the RAG ingestion stage, typically 10 to 20 percent of the chunk size. It is important because it prevents information from being cut off at chunk boundaries. If a sentence spans two chunks, overlap ensures the full meaning appears in at least one chunk. Without overlap, retrieval quality drops on queries that depend on cross-boundary context.
+
+============================================================
+QUERY: Hybrid retrieval
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.5103] 
+    Retrieval-Augmented Generation (RAG) is a technique that combines informati...
+  [score=0.4873] A vector database is a database that stores and indexes high-dimensional vectors...
+  [score=0.3771] BM25 is a ranking function used in information retrieval. It scores documents ba...
+
+ANSWER:
+Hybrid retrieval combines BM25 and embeddings. BM25 catches exact matches that embeddings miss, and embeddings catch semantic matches that BM25 misses.
