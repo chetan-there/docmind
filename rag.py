@@ -21,6 +21,17 @@ embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 COLLECTION = "test_docs"
 LLM_MODEL = "gemini-2.5-flash"
 
+def chunk_text(text, chunk_size=100, overlap=20):
+    words = text.split()
+    chunks = []
+    start = 0
+    while start < len(words):
+        end = start + chunk_size
+        chunk = " ".join(words[start:end])
+        chunks.append(chunk)
+        start = end - overlap
+    return chunks
+
 # --- Sample documents ---
 documents = [
     "Qdrant is a vector database written in Rust. It supports filtering and payload storage.",
@@ -30,19 +41,25 @@ documents = [
     "RAG stands for Retrieval-Augmented Generation. It combines retrieval with LLM generation.",
     "Embeddings are dense vector representations of text. Similar meanings produce similar vectors.",
     "A vector database is a database that stores and indexes high-dimensional vectors for similarity search. It is used in RAG systems to retrieve relevant text by embedding similarity.",
-    """
-    Retrieval-Augmented Generation (RAG) is a technique that combines information retrieval with large language model generation. The core idea is simple: instead of relying on the LLM's internal knowledge alone, you retrieve relevant documents from an external knowledge base and pass them to the LLM as context.
-
-    A RAG pipeline has three main stages. First, ingestion: documents are loaded, split into chunks, embedded into vectors, and stored in a vector database. Second, retrieval: a user query is embedded, and the system searches the vector database for the most similar chunks. Third, generation: the retrieved chunks are passed to the LLM along with the query, and the LLM generates an answer grounded in the retrieved context.
-
-    Chunking is a critical part of the ingestion stage. If chunks are too large, they contain multiple topics and the embedding becomes a blurred average of everything. If chunks are too small, they lose context and the retrieved fragment may not answer the question. A common approach is to use chunk sizes of 256 to 512 tokens with 10 to 20 percent overlap between chunks.
-
-    Overlap matters because it prevents information from being cut off at chunk boundaries. If a sentence spans two chunks, overlap ensures the full meaning appears in at least one chunk. Without overlap, retrieval quality drops on queries that depend on cross-boundary context.
-
-    Vector databases like Qdrant store embeddings and support fast similarity search. Cosine similarity is the most common distance metric. BM25 is a keyword-based ranking function that complements vector search by matching exact terms. Hybrid retrieval combines both: BM25 catches exact matches that embeddings miss, and embeddings catch semantic matches that BM25 misses.
-""",
 ]
 
+
+# --- The long document (from Day 4) ---
+LONG_DOC = """
+Retrieval-Augmented Generation (RAG) is a technique that combines information retrieval with large language model generation. The core idea is simple: instead of relying on the LLM's internal knowledge alone, you retrieve relevant documents from an external knowledge base and pass them to the LLM as context.
+
+A RAG pipeline has three main stages. First, ingestion: documents are loaded, split into chunks, embedded into vectors, and stored in a vector database. Second, retrieval: a user query is embedded, and the system searches the vector database for the most similar chunks. Third, generation: the retrieved chunks are passed to the LLM along with the query, and the LLM generates an answer grounded in the retrieved context.
+
+Chunking is a critical part of the ingestion stage. If chunks are too large, they contain multiple topics and the embedding becomes a blurred average of everything. If chunks are too small, they lose context and the retrieved fragment may not answer the question. A common approach is to use chunk sizes of 256 to 512 tokens with 10 to 20 percent overlap between chunks.
+
+Overlap matters because it prevents information from being cut off at chunk boundaries. If a sentence spans two chunks, overlap ensures the full meaning appears in at least one chunk. Without overlap, retrieval quality drops on queries that depend on cross-boundary context.
+
+Vector databases like Qdrant store embeddings and support fast similarity search. Cosine similarity is the most common distance metric. BM25 is a keyword-based ranking function that complements vector search by matching exact terms. Hybrid retrieval combines both: BM25 catches exact matches that embeddings miss, and embeddings catch semantic matches that BM25 misses.
+"""
+
+
+
+documents.extend(chunk_text(LONG_DOC, chunk_size=100, overlap=20))
 
 
 # --- Embed and store ---

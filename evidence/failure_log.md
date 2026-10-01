@@ -1,109 +1,106 @@
-# Failure Log — Day 4
+# Failure Log — Day 5
 
-**Date:** 30-09-26
+**Date:** 01-10-26
 **Project:** DocMind
-**Stage:** Day 4 — long document baseline (no chunking)
+**Stage:** Day 5 — actual chunking experiment
 
 ---
 
 ## Setup
 
-- 8 documents in Qdrant (added 1 long document)
-- Long document: ~400 words covering RAG, chunking, overlap, vector DBs, BM25, hybrid retrieval
-- Long doc stored as a single chunk
-- Same pipeline: all-MiniLM-L6-v2 + Qdrant + Gemini 1.5 Flash
+- 7 short documents + 4 chunks from long document = 11 total
+- Chunk size: 100 words, 20-word overlap
+- Same embedding model, same retrieval, same LLM
 
 ---
 
-## Test Queries Added
+## Before vs After
 
-- "What is chunking?"
-- "Chunk overlap"
-- "Hybrid retrieval"
+| Query               | Day 4 (single doc) | Day 5 (chunked) | Change  |
+| ------------------- | ------------------ | --------------- | ------- |
+| "What is chunking?" | 0.4533             | 0.5459          | +0.0926 |
+| "Chunk overlap"     | 0.4208             | 0.5566          | +0.1358 |
+| "Hybrid retrieval"  | 0.5103             | 0.5839          | +0.0736 |
 
----
-
-## Observation 1: The long chunk ranks #1 for every sub-topic query
-
-For all three queries, the same chunk — the entire long document — ranked #1.
-
-Scores:
-
-- "What is chunking?" → 0.4533
-- "Chunk overlap" → 0.4208
-- "Hybrid retrieval" → 0.5103
-
-The system has no way to distinguish which part of the long document matters. It returns the whole thing and hopes the LLM finds the answer.
+All scores improved. Chunking made embeddings more focused.
 
 ---
 
-## Observation 2: The LLM is doing the heavy lifting
+## Observation 1: Scores improved across the board
 
-Gemini answered all three queries correctly because it read the entire long chunk and extracted the relevant paragraph.
+Every query returned a higher top-1 score after chunking. The system is now more confident when it finds relevant content.
 
-This works today because the chunk is short enough (~400 words) for the LLM to process.
-
-It will fail on real documents.
-
-A 50-page PDF embedded as one vector would:
-
-- Blur the embedding (average of many topics)
-- Score low on all specific queries
-- Force the LLM to process huge context with mostly irrelevant content
+This confirms: smaller, focused chunks produce better embeddings.
 
 ---
 
-## Observation 3: Score gap collapses on specific queries
+## Observation 2: Score gap collapsed for multi-chunk concepts
 
 Query: "Hybrid retrieval"
 
-Rank 1: 0.5103 (long doc)
-Rank 2: 0.4873 (vector database chunk)
-Gap: 0.023
+| Rank | Score  | Chunk topic |
+| ---- | ------ | ----------- |
+| 1    | 0.5839 | chunk sizes |
+| 2    | 0.5833 | BM25        |
+| 3    | 0.5601 | RAG         |
 
-0.023 is essentially noise. The retrieval system has zero confidence about which chunk is correct.
+Gap between rank 1 and rank 2: **0.0006**. The system cannot distinguish which chunk is more relevant.
 
-Compare to Day 2's clean separation:
-Rank 1: 0.7775
-Rank 2: 0.4880
-Gap: 0.29
+Reason: "Hybrid retrieval" is a concept that depends on information split across multiple chunks. The chunk talking about chunk sizes mentions "chunks" and "embeddings" — which are semantically close to "hybrid retrieval." The chunk about BM25 mentions "ranking" and "vector search" — also close.
 
-When a chunk contains a single focused topic, retrieval is confident. When a chunk contains many topics, retrieval is uncertain.
+No single chunk defines "hybrid retrieval." The concept is fragmented.
+
+---
+
+## Observation 3: The LLM is now doing cross-chunk synthesis
+
+For "Hybrid retrieval," the answer was correct:
+
+> "Hybrid retrieval combines both: BM25 catches exact matches that embeddings miss, and embeddings catch semantic matches that BM25 misses."
+
+But this answer was not in any single retrieved chunk. Gemini combined information from two chunks (one about BM25, one about chunk sizes) to produce it.
+
+The LLM is patching over a retrieval problem.
+
+---
+
+## Trade-off Confirmed
+
+Chunking:
+
+- **Improves** retrieval for narrow, single-concept queries
+- **Weakens** retrieval for cross-chunk concepts
+
+This is the classic RAG chunking trade-off. Smaller chunks = focused retrieval. Larger chunks = context preserved. No single chunk size is optimal for everything.
 
 ---
 
 ## What This Tells Me
 
-1. **Chunking is not optional.** It is the difference between working and not working at scale.
-
-2. **The LLM is masking a retrieval problem.** Gemini reads the entire chunk and finds the answer. It looks like retrieval worked. It did not.
-
-3. **Score gap is a diagnostic tool.** A small gap = retrieval is uncertain. A large gap = retrieval is confident.
-
-4. **This pipeline will fail on real documents.** A 50-page PDF as one chunk would return garbage.
+1. **Chunking improves scores, but not uniformly.**
+2. **Concepts that span chunks become retrieval problems.**
+3. **The LLM hides this by synthesizing across chunks.** It works, but it's fragile.
+4. **Chunk size is a tunable parameter.** 100 words is a starting point, not the answer.
+5. **The next experiment should compare chunk sizes.** Test 50, 100, 200. Measure.
 
 ---
 
-## Next Experiment (Day 5)
+## Next Experiment (Day 6)
 
-Actually chunk the long document into 200-word pieces with 40-word overlap.
+Compare chunk sizes:
 
-Re-run the same three queries.
+- 50 words, 10 overlap
+- 100 words, 20 overlap (already done)
+- 200 words, 40 overlap
 
-Compare:
-
-- Which chunk ranks #1 for each query
-- Score of the top chunk before vs after
-- Whether the answer becomes more specific
-
-Hypothesis: chunking will increase the top-1 score because each chunk is more focused. The correct chunk will outrank the others with a clear gap.
+For each, run the same 3 queries. Record top-1 score and gap. Find the sweet spot for this document set.
 
 ---
 
 ## Honest Summary
 
-Today's run established the baseline. The system works, but only because the long document is short enough that the LLM can process it entirely.
+Chunking worked. Scores went up. But the experiment exposed a new problem: multi-concept queries split across chunks have weak retrieval.
 
-This is not retrieval. This is the LLM doing the work.
+The LLM is compensating by combining chunks. This works today but will not scale.
 
-The next experiment will show whether real chunking fixes this.
+Next: find the right chunk size through measurement, not guessing.
