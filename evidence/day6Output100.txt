@@ -1,0 +1,50 @@
+(docmind) C:\swe\docmind>uv run rag.py
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 103/103 [00:00<00:00, 1840.14it/s]
+
+============================================================
+CHUNK CONFIG: size=100, overlap=20
+Long doc produced 4 chunks
+Total documents in index: 11
+============================================================
+
+Inserted 11 documents into Qdrant collection 'test_docs'
+
+============================================================
+QUERY: What is chunking?
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.5459] searches the vector database for the most similar chunks. Third, generation: the...
+  [score=0.2618] approach is to use chunk sizes of 256 to 512 tokens with 10 to 20 percent overla...
+  [score=0.2544] Retrieval-Augmented Generation (RAG) is a technique that combines information re...
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+
+ANSWER:
+Chunking is a critical part of the ingestion stage where documents are split into chunks.
+
+============================================================
+QUERY: Chunk overlap
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.5566] searches the vector database for the most similar chunks. Third, generation: the...
+  [score=0.4142] approach is to use chunk sizes of 256 to 512 tokens with 10 to 20 percent overla...
+  [score=0.2159] Retrieval-Augmented Generation (RAG) is a technique that combines information re...
+
+ANSWER:
+Chunk overlap is typically 10 to 20 percent between chunks. It matters because it prevents information from being cut off at chunk boundaries, ensuring that if a sentence spans two chunks, its full meaning appears in at least one. Without overlap, retrieval quality drops on queries that depend on cross-boundary context.
+
+============================================================
+QUERY: Hybrid retrieval
+============================================================
+
+RETRIEVED CHUNKS:
+  [score=0.5839] approach is to use chunk sizes of 256 to 512 tokens with 10 to 20 percent overla...
+  [score=0.5833] BM25 is a keyword-based ranking function that complements vector search by match...
+  [score=0.5601] Retrieval-Augmented Generation (RAG) is a technique that combines information re...
+
+ANSWER:
+Hybrid retrieval combines BM25 and vector search. BM25 catches exact matches that embeddings miss, and embeddings catch semantic matches that BM25 misses.
+
+(docmind) C:\swe\docmind>

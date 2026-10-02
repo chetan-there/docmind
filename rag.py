@@ -7,6 +7,10 @@ from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
+# --- Chunk config (change these between runs) ---
+CHUNK_SIZE = 200     # try 50, 100, 200
+OVERLAP = 40         # try 10, 20, 40
+
 # --- Setup Clients ---
 client = genai.Client()
 
@@ -21,7 +25,8 @@ embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 COLLECTION = "test_docs"
 LLM_MODEL = "gemini-2.5-flash"
 
-def chunk_text(text, chunk_size=100, overlap=20):
+
+def chunk_text(text, chunk_size=200, overlap=50):
     words = text.split()
     chunks = []
     start = 0
@@ -31,6 +36,7 @@ def chunk_text(text, chunk_size=100, overlap=20):
         chunks.append(chunk)
         start = end - overlap
     return chunks
+
 
 # --- Sample documents ---
 documents = [
@@ -58,8 +64,15 @@ Vector databases like Qdrant store embeddings and support fast similarity search
 """
 
 
+# --- Add chunked pieces of long doc to documents ---
+long_doc_chunks = chunk_text(LONG_DOC, chunk_size=CHUNK_SIZE, overlap=OVERLAP)
+documents.extend(long_doc_chunks)
 
-documents.extend(chunk_text(LONG_DOC, chunk_size=100, overlap=20))
+print(f"\n{'='*60}")
+print(f"CHUNK CONFIG: size={CHUNK_SIZE}, overlap={OVERLAP}")
+print(f"Long doc produced {len(long_doc_chunks)} chunks")
+print(f"Total documents in index: {len(documents)}")
+print(f"{'='*60}\n")
 
 
 # --- Embed and store ---

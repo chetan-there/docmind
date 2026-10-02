@@ -1,106 +1,77 @@
-# Failure Log — Day 5
+# Failure Log — Day 6
 
-**Date:** 01-10-26
+**Date:** 02-10-26
 **Project:** DocMind
-**Stage:** Day 5 — actual chunking experiment
+**Stage:** Day 6 — chunk size comparison
 
 ---
 
-## Setup
+## Experiment
 
-- 7 short documents + 4 chunks from long document = 11 total
-- Chunk size: 100 words, 20-word overlap
-- Same embedding model, same retrieval, same LLM
+Tested three chunk sizes on the same 3 queries. Same embedding model, same retrieval, same LLM.
 
----
-
-## Before vs After
-
-| Query               | Day 4 (single doc) | Day 5 (chunked) | Change  |
-| ------------------- | ------------------ | --------------- | ------- |
-| "What is chunking?" | 0.4533             | 0.5459          | +0.0926 |
-| "Chunk overlap"     | 0.4208             | 0.5566          | +0.1358 |
-| "Hybrid retrieval"  | 0.5103             | 0.5839          | +0.0736 |
-
-All scores improved. Chunking made embeddings more focused.
+- 50 words / 10 overlap → 7 chunks
+- 100 words / 20 overlap → 4 chunks
+- 200 words / 40 overlap → 2 chunks
 
 ---
 
-## Observation 1: Scores improved across the board
+## Results
 
-Every query returned a higher top-1 score after chunking. The system is now more confident when it finds relevant content.
+| Query               | 50/10 top score | 100/20 top score | 200/40 top score |
+| ------------------- | --------------- | ---------------- | ---------------- |
+| "What is chunking?" | **0.5944**      | 0.5459           | 0.4441           |
+| "Chunk overlap"     | **0.6470**      | 0.5566           | 0.4120           |
+| "Hybrid retrieval"  | 0.5833          | **0.5839**       | 0.5469           |
 
-This confirms: smaller, focused chunks produce better embeddings.
+Score gap (rank 1 − rank 2):
 
----
-
-## Observation 2: Score gap collapsed for multi-chunk concepts
-
-Query: "Hybrid retrieval"
-
-| Rank | Score  | Chunk topic |
-| ---- | ------ | ----------- |
-| 1    | 0.5839 | chunk sizes |
-| 2    | 0.5833 | BM25        |
-| 3    | 0.5601 | RAG         |
-
-Gap between rank 1 and rank 2: **0.0006**. The system cannot distinguish which chunk is more relevant.
-
-Reason: "Hybrid retrieval" is a concept that depends on information split across multiple chunks. The chunk talking about chunk sizes mentions "chunks" and "embeddings" — which are semantically close to "hybrid retrieval." The chunk about BM25 mentions "ranking" and "vector search" — also close.
-
-No single chunk defines "hybrid retrieval." The concept is fragmented.
+| Query               | 50/10 gap | 100/20 gap | 200/40 gap |
+| ------------------- | --------- | ---------- | ---------- |
+| "What is chunking?" | 0.0297    | **0.2841** | 0.2019     |
+| "Chunk overlap"     | 0.0875    | **0.1424** | 0.0305     |
+| "Hybrid retrieval"  | 0.0644    | 0.0006     | 0.0288     |
 
 ---
 
-## Observation 3: The LLM is now doing cross-chunk synthesis
+## Observations
 
-For "Hybrid retrieval," the answer was correct:
+**1. Smaller chunks score higher for narrow queries.**
+50/10 produced the highest top-1 score for both "What is chunking?" (0.5944) and "Chunk overlap" (0.6470). Smaller chunks produce sharper embeddings that match specific queries more confidently.
 
-> "Hybrid retrieval combines both: BM25 catches exact matches that embeddings miss, and embeddings catch semantic matches that BM25 misses."
+**2. Medium chunks have the clearest score gap.**
+100/20 produced the largest rank-1 to rank-2 gap for "What is chunking?" (0.2841) and "Chunk overlap" (0.1424). The system is most confident in its top choice with 100-word chunks.
 
-But this answer was not in any single retrieved chunk. Gemini combined information from two chunks (one about BM25, one about chunk sizes) to produce it.
+**3. Large chunks blur everything.**
+200/40 produced the lowest top-1 scores across all queries. The 2 chunks are too broad. Concepts get diluted.
 
-The LLM is patching over a retrieval problem.
+**4. No chunk size wins everywhere.**
+For "Hybrid retrieval," 100/20 and 50/10 tie (0.5839 vs 0.5833). For narrow queries, 50/10 wins on score. For confidence, 100/20 wins.
 
----
-
-## Trade-off Confirmed
-
-Chunking:
-
-- **Improves** retrieval for narrow, single-concept queries
-- **Weakens** retrieval for cross-chunk concepts
-
-This is the classic RAG chunking trade-off. Smaller chunks = focused retrieval. Larger chunks = context preserved. No single chunk size is optimal for everything.
+**5. Bigger chunks collapse the score gap on cross-concept queries.**
+At 200/40, "Chunk overlap" had a gap of 0.0305. At 100/20, it was 0.1424. Bigger chunks lose distinction between topics.
 
 ---
 
 ## What This Tells Me
 
-1. **Chunking improves scores, but not uniformly.**
-2. **Concepts that span chunks become retrieval problems.**
-3. **The LLM hides this by synthesizing across chunks.** It works, but it's fragile.
-4. **Chunk size is a tunable parameter.** 100 words is a starting point, not the answer.
-5. **The next experiment should compare chunk sizes.** Test 50, 100, 200. Measure.
+1. **Chunk size is a tunable parameter that measurably affects retrieval quality.**
+2. **There is no universal best chunk size.** It depends on query patterns and document structure.
+3. **Score gap is as important as top score.** High score with small gap = uncertain retrieval.
+4. **100 words / 20 overlap is a reasonable default** for this document set. It balances top score and confidence.
+5. **Real RAG systems need evaluation metrics.** Without measuring, you cannot choose chunk size intelligently.
 
 ---
 
-## Next Experiment (Day 6)
+## Next Experiment (Day 7)
 
-Compare chunk sizes:
+Evaluate retrieval properly. Currently I'm eyeballing scores. I need real metrics.
 
-- 50 words, 10 overlap
-- 100 words, 20 overlap (already done)
-- 200 words, 40 overlap
+Plan:
 
-For each, run the same 3 queries. Record top-1 score and gap. Find the sweet spot for this document set.
+- Build a small evaluation set: 10 queries with known correct answers
+- Compute precision@k (is the correct chunk in the top k?)
+- Compute MRR (mean reciprocal rank — how high does the correct chunk rank?)
+- Compare chunk configs using these metrics
 
----
-
-## Honest Summary
-
-Chunking worked. Scores went up. But the experiment exposed a new problem: multi-concept queries split across chunks have weak retrieval.
-
-The LLM is compensating by combining chunks. This works today but will not scale.
-
-Next: find the right chunk size through measurement, not guessing.
+This moves from "the scores look better" to "retrieval precision improved by X%."
