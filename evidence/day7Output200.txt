@@ -1,0 +1,22 @@
+CHUNK CONFIG: size=100, overlap=20
+Long doc produced 4 chunks
+Total documents in index: 11
+
+======================================================================
+Query                                     Rank    Result
+======================================================================
+What is a vector database?                1       correct
+What is Qdrant?                           1       correct
+How does BM25 work?                       1       correct
+What is RAG?                              1       correct
+What is FastAPI?                          1       correct
+What is chunking?                         1       correct
+What is chunk overlap?                    2       late
+What is hybrid retrieval?                 1       correct
+What are embeddings?                      1       correct
+What is LangGraph?                        1       correct
+----------------------------------------------------------------------
+Precision@1 : 0.90
+Precision@3 : 1.00
+MRR         : 0.9500
+----------------------------------------------------------------------

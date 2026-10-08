@@ -1,0 +1,30 @@
+Hybrid Retrieval — Day 9
+Method: Vector + BM25 combined via Reciprocal Rank Fusion (k=60)
+Chunk config: 100/20. 11 documents in index.
+
+======================================================================
+MODE: VECTOR
+======================================================================
+Precision@1: 0.90
+Precision@3: 1.00
+MRR: 0.9500
+
+======================================================================
+MODE: BM25
+======================================================================
+Precision@1: 0.40
+Precision@3: 0.70
+MRR: 0.5333
+
+======================================================================
+MODE: HYBRID
+======================================================================
+Precision@1: 0.70
+Precision@3: 0.90
+MRR: 0.8000
+
+Finding:
+Vector beats hybrid. Hybrid beats BM25.
+BM25 noise dragged hybrid below vector alone.
+RRF gives weak BM25 rankings equal weight — bad signals pull fused ranking down.
+Hybrid retrieval is not automatically better. Both retrievers need to be strong.
