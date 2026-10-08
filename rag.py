@@ -8,8 +8,8 @@ from sentence_transformers import SentenceTransformer
 load_dotenv()
 
 # --- Chunk config (change these between runs) ---
-CHUNK_SIZE = 200     # try 50, 100, 200
-OVERLAP = 40         # try 10, 20, 40
+CHUNK_SIZE = 100     # try 50, 100, 200
+OVERLAP = 20         # try 10, 20, 40
 
 # --- Setup Clients ---
 client = genai.Client()
